@@ -71,6 +71,59 @@ dict_lojas = {
     "LOJA 68 - MARILIA III" : "2183783005423",
     "LOJA 71 - P FERREIRA" : "2183783005695",
 }
+dict_num_lojas = {
+    "CD" : "2183783000111",
+    "CD2" : "2183783001606",
+    "CD1" : "2183783001517",
+    "1" : "2183783000545",
+    "3" : "2183783000383",
+    "4" : "2183783000200",
+    "5" : "2183783000464",
+    "7" : "2183783000626",
+    "8" : "2183783000898",
+    "9" : "2183783000707",
+    "10" : "2183783000979",
+    "11" : "2183783001193",
+    "12" : "2183783001002",
+    "13" : "2183783001274",
+    "14" : "2183783001355",
+    "17" : "14298644000112",
+    "20" : "328944000354",
+    "21" : "8571461000126",
+    "22" : "8571461000207",
+    "25" : "2183783001860",
+    "26" : "2183783001789",
+    "28" : "2183783001940",
+    "30" : "2183783002165",
+    "31" : "2183783002246",
+    "32" : "2183783002327",
+    "33" : "2183783002408",
+    "34" : "2183783002599",
+    "40" : "72714637000150",
+    "41" : "72714637000401",
+    "42" : "2183783003218",
+    "43" : "2183783003307",
+    "44" : "2183783003480",
+    "45" : "2183783003641",
+    "46" : "2183783003722",
+    "47" : "2183783003803",
+    "48" : "2183783003994",
+    "49" : "2183783004028",
+    "50" : "2183783004109",
+    "51" : "2183783004290",
+    "55" : "2183783004613",
+    "56" : "2183783004702",
+    "57" : "2183783004885",
+    "58" : "2183783002670",
+    "61" : "2183783002912",
+    "62" : "2183783003056",
+    "63" : "2183783003137",
+    "64" : "2183783004966",
+    "66" : "2183783005180",
+    "67" : "2183783005261",
+    "68" : "2183783005423",
+    "71" : "2183783005695",
+}
 dict_grupos = {
     "CD" : "[CD] - MATRIZ",
     "20" : "[20] - LOJA 20 - JAU",
@@ -92,9 +145,9 @@ dict_grupos = {
     "6" : "[6] - GRUPO 6"
 }
 
-def open_file(caminho):
-    df = pd.read_excel(caminho, engine='openpyxl')
-    return df
+# def open_file(caminho):
+#     df = pd.read_excel(caminho, engine='openpyxl')
+#     return df
 
 # Função para salvar o nome de usuário e a senha em um arquivo
 def save_credentials():
@@ -129,7 +182,7 @@ def abrir_arquivo(entrada_arquivo, root):
         entrada_arquivo.delete(0, tk.END)  # Limpa a entrada
         entrada_arquivo.insert(0, arquivo_selecionado)  # Insere o caminho do arquivo selecionado
 
-def baixar_layout():
+def baixar_layout_alteracao():
     # Defina o nome do arquivo e o caminho para a pasta de downloads
     download_folder = os.path.join(os.path.expanduser("~"), "Downloads")
     file_path = os.path.join(download_folder, "Layout_alteracao_preco.xlsx")
@@ -137,6 +190,36 @@ def baixar_layout():
     # Defina os nomes das colunas conforme a imagem
     colunas = [
         "Tipo do Codigo", "Produto/Grupo", "Vl. Custo", "Vl. Revenda", "Loja/Grupo", "Data inicio" ,"Status"
+    ]
+    
+    # Crie um dataframe vazio com as colunas desejadas
+    df = pd.DataFrame(columns=colunas)
+    
+    df.to_excel(file_path, index=False, engine='openpyxl')
+
+        # Ajusta o tamanho das colunas para todas terem largura 20
+    workbook = load_workbook(file_path)
+    worksheet = workbook.active
+    
+    # Define todas as colunas com largura 20
+    for col in worksheet.columns:
+        col_letter = col[0].column_letter  # Pega a letra da coluna (A, B, C, etc.)
+        worksheet.column_dimensions[col_letter].width = 20
+    
+    # Salva o arquivo após ajustar a largura das colunas
+    workbook.save(file_path)
+    
+    # Abrir a pasta de downloads no Windows
+    subprocess.Popen(f'explorer "{download_folder}"')
+
+def baixar_layout_transferencia():
+    # Defina o nome do arquivo e o caminho para a pasta de downloads
+    download_folder = os.path.join(os.path.expanduser("~"), "Downloads")
+    file_path = os.path.join(download_folder, "Layout_transf_pedido.xlsx")
+    
+    # Defina os nomes das colunas conforme a imagem
+    colunas = [
+        "Loja Origem", "Loja Destino", "Qtd&Code", "Status"
     ]
     
     # Crie um dataframe vazio com as colunas desejadas
@@ -472,7 +555,87 @@ def consulta_preco(caminho, select_loja):
     arquivo_final(caminho)
 
 # Funcao para realizar a movimentacao interna
-def movimentacao_interna(caminho, cnpj_origem, cnpj_destino):
+def movimentacao_interna(caminho):
+    def novo_nome_csv():
+        # Extrair diretório e nome base do arquivo Excel
+        dir_name, file_name = os.path.split(caminho)
+        base_name, ext = os.path.splitext(file_name)
+
+        # Criar o novo nome de arquivo CSV no mesmo diretório
+        csv_file_name = f"{base_name}_controle_parcial.csv"  # Altera a extensão para .csv
+        csv_file_path = os.path.join(dir_name, csv_file_name)
+        return csv_file_path
+    
+    def xml_csv():
+        df = pd.read_excel(caminho, engine='openpyxl')
+
+        # Substituir os valores na coluna da Loja Origem pelo CNPJ correspondente
+        df["Loja Origem"] = df["Loja Origem"].astype(str).replace(dict_num_lojas)
+
+        df["Loja Destino"] = df["Loja Destino"].astype(str).replace(dict_num_lojas)
+
+        df['Status'] = df['Status'].astype(str)
+
+        csv_file_path = novo_nome_csv()
+
+        # Salvar o DataFrame como CSV no mesmo diretório
+        df.to_csv(csv_file_path, sep=";", index=False)
+        return df
+    
+    def leitura_planilha():
+        try:
+            df = pd.read_csv(novo_nome_csv(), sep=";")
+        except:
+            df = xml_csv()
+        
+        # Converter as colunas 'Loja Origem' e 'Loja Destino' para string
+        df['Loja Origem'] = df['Loja Origem'].astype(str)
+        df['Loja Destino'] = df['Loja Destino'].astype(str)
+        df['Status'] = df['Status'].astype(str)
+        
+        # Filtrar as linhas onde o status está em branco (usando valores nulos ou strings vazias)
+        df_filtrado = df[df["Status"].isna() | (df["Status"] == '')]
+        
+        # Separar o DataFrame em partes por 'ORIGEM' e 'DESTINO'
+        grouped_dfs = df_filtrado.groupby(["Loja Origem", "Loja Destino"])
+
+        return grouped_dfs
+    
+    def update_status(cnpj_origem, cnpj_destino, item, num_pedido):
+        df = pd.read_csv(novo_nome_csv(), sep=";")
+        
+        # Converter as colunas 'Loja Origem' e 'Loja Destino' para string
+        df['Loja Origem'] = df['Loja Origem'].astype(str)
+        df['Loja Destino'] = df['Loja Destino'].astype(str)
+        df['Status'] = df['Status'].astype(str)
+        
+        # Atualizar a coluna 'Status' quando as condições forem atendidas
+        mask = (df['Loja Origem'] == cnpj_origem) & \
+            (df['Loja Destino'] == cnpj_destino) & \
+            (df['Qtd&Code'] == item)
+        
+        # Atualizar o status conforme a máscara
+        df.loc[mask, 'Status'] = str(num_pedido)
+
+        # Salvar o DataFrame de volta ao CSV (substituindo o arquivo original)
+        df.to_csv(novo_nome_csv(), sep=";", index=False)
+
+
+    def arquivo_final():
+        # Definir o caminho do arquivo existente (parcial)
+        old_file_path = novo_nome_csv()
+
+        # Extrair diretório e nome base do arquivo
+        dir_name, file_name = os.path.split(old_file_path)
+        base_name, ext = os.path.splitext(file_name)
+
+        # Substituir a palavra 'parcial' por 'final' no nome do arquivo
+        new_file_name = file_name.replace('parcial', 'final')
+        new_file_path = os.path.join(dir_name, new_file_name)
+        
+        # Renomear o arquivo
+        os.rename(old_file_path, new_file_path)
+
     def enter_navegador():
         # Carregar credenciais do arquivo
         try:
@@ -502,6 +665,7 @@ def movimentacao_interna(caminho, cnpj_origem, cnpj_destino):
 
         return navegador
 
+
     def enter_mov_int(navegador):
         navegador.find_element(By.ID, 'opMovInterna').click()
 
@@ -516,36 +680,23 @@ def movimentacao_interna(caminho, cnpj_origem, cnpj_destino):
 
         return navegador
 
-    def action_mov_int(navegador,cnpj_origem, cnpj_destino):
-        def arquivo_final(caminho):
-            # Extrair diretório e nome base do arquivo
-            dir_name, file_name = os.path.split(caminho)
-            base_name, ext = os.path.splitext(file_name)
-            
-            # Criar o novo nome de arquivo
-            new_file_name = f"{base_name}_pedido_finalizado{ext}"
-            new_file_path = os.path.join(dir_name, new_file_name)
-
-            # Renomear o arquivo
-            os.rename(caminho, new_file_path)
-
+    def action_mov_int(navegador,cnpj_origem, cnpj_destino, lista):
         select_cnpj = WebDriverWait(navegador, 5).until(
             EC.element_to_be_clickable((By.XPATH, f".//option[contains(@value, '{cnpj_origem}')]"))
         )
         select_cnpj.click()
 
         current_value = 0
-        lista = open_file(caminho)
         
-        for index, row in lista.iterrows():
+        for row in lista:
             quantite_field = navegador.find_element(By.ID, 'incCentral:formConteudo:txtProduto')
             quantite_field.click()
             quantite_field.clear()
-            quantite_field.send_keys(row.iloc[0])
+            quantite_field.send_keys(row)
            
             navegador.find_element(By.ID, 'incCentral:formConteudo:btnAdicionar').click()
             
-            quantite = int(row.iloc[0].split('&')[0])
+            quantite = int(row.split('&')[0])
             current_value += quantite
 
             text_value = 0
@@ -578,7 +729,6 @@ def movimentacao_interna(caminho, cnpj_origem, cnpj_destino):
         )
         select_id_destino.click()
 
-
         cond_pag = WebDriverWait(navegador, 10).until(
             EC.presence_of_element_located((By.ID, 'incCentral:formConteudo:selCondicaoPagto'))
         )
@@ -596,6 +746,10 @@ def movimentacao_interna(caminho, cnpj_origem, cnpj_destino):
         item_class = soup_element.find('li', class_='okMessageGrande')
         
         value_element = item_class.text.split(' ')[2]
+
+        for row in lista:
+            item = row
+            update_status(cnpj_origem, cnpj_destino, item, value_element)
 
         # Selecionar Vendas
         navegador.find_element(By.ID, 'opVendas').click()
@@ -717,12 +871,19 @@ def movimentacao_interna(caminho, cnpj_origem, cnpj_destino):
 
         navegador.find_element(By.XPATH, "//input[@value='Selecionar Operação']").click()
 
-        time.sleep(10)
-        navegador.close()
+        time.sleep(5)
 
-    navegador = enter_navegador()
-    enter_mov_int(navegador)
-    action_mov_int(navegador, cnpj_origem, cnpj_destino)
+    def processo_inclusao_pedidos():
+        navegador = enter_navegador()
+        grouped_dfs = leitura_planilha()
+        for group_name, group_df in grouped_dfs:
+            origem, destino = group_name  # 'group_name' retorna uma tupla com (Loja Origem, Loja Destino)
+            lista = group_df['Qtd&Code'].tolist()  # Converte a coluna 'Qtd&Code' para uma lista
+            enter_mov_int(navegador)
+            action_mov_int(navegador, origem, destino, lista)
+        arquivo_final()
+
+    processo_inclusao_pedidos()
 
 # Funcao para alterar o preco
 def alteracao_preco(caminho):
@@ -1235,20 +1396,24 @@ def page_mov_int(main_page, dict_lojas):
     buttom_search_folder = tk.Button(frame3, text='...', command=lambda: abrir_arquivo(folder, root1))
     buttom_search_folder.place(relx=0.8, rely=0.1, relwidth=0.1, relheight=0.1)
 
-    # Inclusão Combo Box Lojas Origem
-    loja_origem_label = Label(frame3, text="Loja Origem")
-    loja_origem_label.place(relx=0.0, rely=0.35, relwidth=0.25, relheight=0.1)
-    loja_origem = ttk.Combobox(frame3, values=list(dict_lojas.keys()))
-    loja_origem.place(relx=0.3, rely=0.35, relwidth=0.6, relheight=0.1)
+    # # Inclusão Combo Box Lojas Origem
+    # loja_origem_label = Label(frame3, text="Loja Origem")
+    # loja_origem_label.place(relx=0.0, rely=0.35, relwidth=0.25, relheight=0.1)
+    # loja_origem = ttk.Combobox(frame3, values=list(dict_lojas.keys()))
+    # loja_origem.place(relx=0.3, rely=0.35, relwidth=0.6, relheight=0.1)
 
-    # Inclusão Combo Box Lojas Destino
-    loja_destino_label = Label(frame3, text="Loja Destino")
-    loja_destino_label.place(relx=0.0, rely=0.6, relwidth=0.25, relheight=0.1)
-    loja_destino = ttk.Combobox(frame3, values=list(dict_lojas.keys()))
-    loja_destino.place(relx=0.3, rely=0.6, relwidth=0.6, relheight=0.1)
+    # # Inclusão Combo Box Lojas Destino
+    # loja_destino_label = Label(frame3, text="Loja Destino")
+    # loja_destino_label.place(relx=0.0, rely=0.6, relwidth=0.25, relheight=0.1)
+    # loja_destino = ttk.Combobox(frame3, values=list(dict_lojas.keys()))
+    # loja_destino.place(relx=0.3, rely=0.6, relwidth=0.6, relheight=0.1)
+
+    # Inclusao do botao Baixar Layout
+    buttom_layout = Button(frame3, text="Layout", bd=3, command=baixar_layout_transferencia)
+    buttom_layout.place(relx=0.5, rely=0.75, relwidth=0.2, relheight=0.15)
 
     # Inclusão do botão Iniciar
-    buttom_start = Button(frame3, text="Iniciar", bd=3, command=lambda: movimentacao_interna(folder.get(), dict_lojas[loja_origem.get()], dict_lojas[loja_destino.get()]))
+    buttom_start = Button(frame3, text="Iniciar", bd=3, command=lambda: movimentacao_interna(folder.get()))
     buttom_start.place(relx=0.7, rely=0.75, relwidth=0.2, relheight=0.15)
 
 # Criação da Página de Consulta Preco
@@ -1328,7 +1493,7 @@ def page_alt_price(main_page):
     buttom_search_folder.place(relx=0.8, rely=0.1, relwidth=0.1, relheight=0.1)
 
     # Inclusao do botao Baixar Layout
-    buttom_layout = Button(frame3, text="Layout", bd=3, command=baixar_layout)
+    buttom_layout = Button(frame3, text="Layout", bd=3, command=baixar_layout_alteracao)
     buttom_layout.place(relx=0.5, rely=0.75, relwidth=0.2, relheight=0.15)
 
     # Inclusão do botão Iniciar
