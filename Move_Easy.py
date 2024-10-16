@@ -62,6 +62,7 @@ dict_lojas = {
     "LOJA 56 - BOTUCATU 2" : "2183783004702",
     "LOJA 57 - JAU" : "2183783004885",
     "LOJA 58 - SOROCABA 1" : "2183783002670",
+    "LOJA 60 - SAO CARLOS CENTRO" : "2183783002831",
     "LOJA 61 - SC V PRADO" : "2183783002912",
     "LOJA 62 - SC SHOPPING" : "2183783003056",
     "LOJA 63 - RIB SHOP" : "2183783003137",
@@ -115,6 +116,7 @@ dict_num_lojas = {
     "56" : "2183783004702",
     "57" : "2183783004885",
     "58" : "2183783002670",
+    "60" : "2183783002831",
     "61" : "2183783002912",
     "62" : "2183783003056",
     "63" : "2183783003137",
@@ -574,8 +576,6 @@ def movimentacao_interna(caminho):
 
         df["Loja Destino"] = df["Loja Destino"].astype(str).replace(dict_num_lojas)
 
-        df['Status'] = df['Status'].astype(str)
-
         csv_file_path = novo_nome_csv()
 
         # Salvar o DataFrame como CSV no mesmo diretório
@@ -591,8 +591,7 @@ def movimentacao_interna(caminho):
         # Converter as colunas 'Loja Origem' e 'Loja Destino' para string
         df['Loja Origem'] = df['Loja Origem'].astype(str)
         df['Loja Destino'] = df['Loja Destino'].astype(str)
-        df['Status'] = df['Status'].astype(str)
-        
+
         # Filtrar as linhas onde o status está em branco (usando valores nulos ou strings vazias)
         df_filtrado = df[df["Status"].isna() | (df["Status"] == '')]
         
@@ -607,7 +606,6 @@ def movimentacao_interna(caminho):
         # Converter as colunas 'Loja Origem' e 'Loja Destino' para string
         df['Loja Origem'] = df['Loja Origem'].astype(str)
         df['Loja Destino'] = df['Loja Destino'].astype(str)
-        df['Status'] = df['Status'].astype(str)
         
         # Atualizar a coluna 'Status' quando as condições forem atendidas
         mask = (df['Loja Origem'] == cnpj_origem) & \
@@ -615,7 +613,7 @@ def movimentacao_interna(caminho):
             (df['Qtd&Code'] == item)
         
         # Atualizar o status conforme a máscara
-        df.loc[mask, 'Status'] = str(num_pedido)
+        df.loc[mask, 'Status'] = f"PD {num_pedido}"
 
         # Salvar o DataFrame de volta ao CSV (substituindo o arquivo original)
         df.to_csv(novo_nome_csv(), sep=";", index=False)
@@ -984,12 +982,15 @@ def alteracao_preco(caminho):
             return None
 
     def seleciona_loja(navegador, num_loja):
-        time.sleep(1)
-        loja = dict_grupos.get(num_loja)
-        element_loja = WebDriverWait(navegador, 10).until(EC.visibility_of_element_located((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:selEmiCoCnpj")))
-        select_loja = Select(element_loja)
-        select_loja.select_by_visible_text(loja)
-        return navegador
+        try:
+            time.sleep(1)
+            loja = dict_grupos.get(num_loja)
+            element_loja = WebDriverWait(navegador, 10).until(EC.visibility_of_element_located((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:selEmiCoCnpj")))
+            select_loja = Select(element_loja)
+            select_loja.select_by_visible_text(loja)
+            return navegador, True
+        except:
+            return navegador, False
     
     def inclui_data_inicio(navegador, data):
         time.sleep(1)
@@ -1128,10 +1129,13 @@ def alteracao_preco(caminho):
                 navegador.execute_script("document.getElementById('incCentral:incCentralDiversos:incCentralDiversos:pnlPsqProduto').component.hide()")
                 return navegador, "ERRO"
 
-    def atualiza_preco(navegador, mensagem, vl_custo, vl_revenda):
-        time.sleep(1)
-        try:
-            # Localiza o elemento <select> pelo ID
+
+    def validacao_dados(navegador):
+        WebDriverWait(navegador,10).until(EC.visibility_of_element_located((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:pnlPrecoVendaForm")))
+        start_time_loja = time.time()
+        check_loja = ''
+        while True:
+            # Localiza o elemento <select> pelo ID 
             select_element = navegador.find_element(By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:selEmiCoCnpj")
 
             # Localiza o <option> que está selecionado
@@ -1143,13 +1147,15 @@ def alteracao_preco(caminho):
             match = re.search(r'\[(.*?)\]', option_text)
 
             if match:
-                loja = match.group(1)  # Extrai o valor capturado
-            else:
-                return navegador, 'ERRO LOJA'
-        except:
-            return navegador, 'ERRO LOJA'
-
-        try:
+                check_loja = match.group(1)  # Extrai o valor capturado
+                break
+            
+            if time.time() - start_time_loja > 5:
+                break
+        
+        start_time_code = time.time()
+        check_code = ''
+        while True:
             # Localiza o elemento span usando o ID
             span_element = navegador.find_element(By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:pnlNoPrdFiltro")
 
@@ -1160,49 +1166,48 @@ def alteracao_preco(caminho):
             match = re.search(r'\[(\d+)\]', span_text)
             
             if match:
-                codigo = str(match.group(1))  # Extrai o número capturado
-            else:
-                return navegador, 'ERRO CODIGO'
+                check_code = str(match.group(1))  # Extrai o número capturado
+                break
+            if time.time() - start_time_code > 5:
+                break
+        
+        return check_loja, check_code
+
+    def atualiza_preco(navegador, vl_custo, vl_revenda):
+        try:
+            field_custo = navegador.find_element(By.ID, 'incCentral:incCentralDiversos:incCentralDiversos:formConteudo:txtPvdVlCustoReposicao')
         except:
-            return navegador, 'ERRO CODIGO'
+            field_custo = navegador.find_element(By.ID, 'incCentral:incCentralDiversos:incCentralDiversos:formConteudo:txtGpvVlCustoReposicao')
+        field_custo.click()
+        field_custo.clear()
+        field_custo.send_keys(vl_custo)
 
-        if mensagem == codigo:
-            try:
-                field_custo = navegador.find_element(By.ID, 'incCentral:incCentralDiversos:incCentralDiversos:formConteudo:txtPvdVlCustoReposicao')
-            except:
-                field_custo = navegador.find_element(By.ID, 'incCentral:incCentralDiversos:incCentralDiversos:formConteudo:txtGpvVlCustoReposicao')
-            field_custo.click()
-            field_custo.clear()
-            field_custo.send_keys(vl_custo)
+        try:
+            field_revenda = navegador.find_element(By.ID, 'incCentral:incCentralDiversos:incCentralDiversos:formConteudo:txtPvdVlVendaRevenda')
+        except:
+            field_revenda = navegador.find_element(By.ID, 'incCentral:incCentralDiversos:incCentralDiversos:formConteudo:txtGpvVlVendaRevenda')
+        field_revenda.click()
+        field_revenda.clear()
+        field_revenda.send_keys(vl_revenda)
 
-            try:
-                field_revenda = navegador.find_element(By.ID, 'incCentral:incCentralDiversos:incCentralDiversos:formConteudo:txtPvdVlVendaRevenda')
-            except:
-                field_revenda = navegador.find_element(By.ID, 'incCentral:incCentralDiversos:incCentralDiversos:formConteudo:txtGpvVlVendaRevenda')
-            field_revenda.click()
-            field_revenda.clear()
-            field_revenda.send_keys(vl_revenda)
+        button_salvar = navegador.find_element(By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:btngpvPrecoAddEdt")
+        button_salvar.click()
 
-            button_salvar = navegador.find_element(By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:btngpvPrecoAddEdt")
-            button_salvar.click()
+        start_time_save = time.time()
+        while True:
+            # Aguardar até que o elemento seja encontrado ou o tempo limite seja atingido
+            ul_element = WebDriverWait(navegador, 20).until(EC.presence_of_element_located((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:msgEndGlobal")))
 
-            time.sleep(1)
-            try:
-                # Aguardar até que o elemento seja encontrado ou o tempo limite seja atingido
-                ul_element = WebDriverWait(navegador, 20).until(EC.presence_of_element_located((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:msgEndGlobal")))
+            # Localiza o <li> com a classe 'okMessage' dentro do <ul>
+            li_element = ul_element.find_element(By.CLASS_NAME, "okMessage")
 
-                # Localiza o <li> com a classe 'okMessage' dentro do <ul>
-                li_element = ul_element.find_element(By.CLASS_NAME, "okMessage")
+            # Obtém o texto do <li>
+            mensagem_ok = li_element.text
 
-                # Obtém o texto do <li>
-                mensagem_ok = li_element.text
-
-                if mensagem_ok == 'Salvo com sucesso!':
-                    return navegador, str(loja)
-                else:
-                    return navegador, ""
-            except:
-                return navegador, ""
+            if mensagem_ok == 'Salvo com sucesso!':
+                return navegador, True
+            if time.time() - start_time_save > 5:
+                return navegador, False
 
     def novo_nome_csv():
         # Extrair diretório e nome base do arquivo Excel
@@ -1274,7 +1279,7 @@ def alteracao_preco(caminho):
 
             elif status.startswith("PARCIAL"):
                 # Se o status for PARCIAL, obter as lojas já analisadas
-                lojas_analisadas = status.split('-')[1].split(',')
+                lojas_analisadas = status.split('-')[-1].split(',')
                 # Encontrar a próxima loja/grupo a ser analisada
                 lojas_pendentes = [loja for loja in lojas if loja not in lojas_analisadas]
                 analisadas = status
@@ -1292,29 +1297,41 @@ def alteracao_preco(caminho):
             # Verificar se ainda há lojas/grupos pendentes
             if lojas_pendentes:
                 for loja in lojas_pendentes:
-                    seleciona_loja(navegador, loja)
-                    if tipo == 'produto':
-                        navegador, mensagem = selecionar_produto(navegador, codigo)
-                    else:
-                        navegador, mensagem = selecionar_grupo_preco(navegador, codigo)
-                    # Atualizar o status com a mensagem retornada
-                    if mensagem.startswith("ERRO"):
-                        df.at[idx, 'Status'] = mensagem
+                    navegador, bool_loja = seleciona_loja(navegador, loja)
+                    if bool_loja is False:
+                        analisadas_parcial = analisadas.split("-")[0] + f" Loja {loja} nao localizada."
+                        if analisadas.split("-")[-1]:
+                            analisadas = analisadas_parcial + "-" + analisadas.split("-")[-1]
+                        else:
+                            analisadas = analisadas_parcial + "-"
+                        df.at[idx, 'Status'] = analisadas
                         df.to_csv(novo_nome_csv(), sep=";" ,index=False)
-                        break
+                        continue
                     else:
-                        navegador, status = atualiza_preco(navegador, mensagem, vl_custo, vl_revenda)
-                        if status.startswith("ERRO"):
-                            df.at[idx, 'Status'] = status
+                        if tipo == 'produto':
+                            navegador, mensagem = selecionar_produto(navegador, codigo)
+                        else:
+                            navegador, mensagem = selecionar_grupo_preco(navegador, codigo)
+                        # Atualizar o status com a mensagem retornada
+                        if mensagem.startswith("ERRO"):
+                            df.at[idx, 'Status'] = mensagem
                             df.to_csv(novo_nome_csv(), sep=";" ,index=False)
                             break
                         else:
-                            if analisadas.split("-")[-1]:
-                                analisadas = analisadas + "," + status
+                            check_loja, check_code = validacao_dados(navegador)
+                            if check_loja == loja and check_code == str(codigo):
+                                navegador, bool_status = atualiza_preco(navegador, vl_custo, vl_revenda)
+                                if bool_status is False:
+                                    continue
+                                else:
+                                    if analisadas.split("-")[-1]:
+                                        analisadas = analisadas + "," + loja
+                                    else:
+                                        analisadas = analisadas + loja
+                                    df.at[idx, 'Status'] = analisadas
+                                    df.to_csv(novo_nome_csv(), sep=";" ,index=False)
                             else:
-                                analisadas = analisadas + status
-                            df.at[idx, 'Status'] = analisadas
-                            df.to_csv(novo_nome_csv(), sep=";" ,index=False)
+                                continue
 
                 new_status = analisadas.split("-")[-1]
                 if lojas_total == new_status:
