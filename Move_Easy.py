@@ -887,6 +887,13 @@ def movimentacao_interna(caminho):
 def alteracao_preco(caminho):
     import warnings
     warnings.simplefilter(action='ignore', category=FutureWarning)
+    
+    def loading(navegador):
+        time.sleep(1)
+        # Espera até que o status de carregamento mude para "display: none"
+        WebDriverWait(navegador, 30).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "span[id='_viewRoot:status.start'][style='display: none']"))
+        )
 
     def enter_navegador():
         # Carregar credenciais do arquivo
@@ -897,8 +904,9 @@ def alteracao_preco(caminho):
 
         navegador = webdriver.Chrome()
         navegador.get("https://sumire-phd.homeip.net:8490/eVendas/home.faces")
+        wait = WebDriverWait(navegador,10)
         user_name = navegador.find_element(By.ID, "form-login")
-        user_password = WebDriverWait(navegador, 10).until(EC.presence_of_element_located((By.ID, "form-senha")))
+        user_password = wait.until(EC.presence_of_element_located((By.ID, "form-senha")))
 
         user_name.send_keys(username)
         user_password.send_keys(password)
@@ -906,13 +914,13 @@ def alteracao_preco(caminho):
         button_login = navegador.find_element(By.ID, "form-submit")
         button_login.click()
 
-        field_cadastro = WebDriverWait(navegador,10).until(EC.element_to_be_clickable((By.ID, "opCadastros")))
+        field_cadastro = wait.until(EC.element_to_be_clickable((By.ID, "opCadastros")))
         field_cadastro.click()
 
-        field_precos = WebDriverWait(navegador,10).until(EC.element_to_be_clickable((By.XPATH, "//*[contains(@id, 'opPrecos')]")))
+        field_precos = wait.until(EC.element_to_be_clickable((By.XPATH, "//*[contains(@id, 'opPrecos')]")))
         field_precos.click()
 
-        field_manutencao = WebDriverWait(navegador,10).until(EC.element_to_be_clickable((By.XPATH, "//*[contains(@id, 'opManutCustoProd')]")))
+        field_manutencao = wait.until(EC.element_to_be_clickable((By.XPATH, "//*[contains(@id, 'opManutCustoProd')]")))
         field_manutencao.click()
         return navegador
     
@@ -926,43 +934,50 @@ def alteracao_preco(caminho):
         except:
             return None
     
-    def box_message_td(navegador):
-        try:
-            # Tenta capturar o texto no primeiro XPath
-            element_tds = navegador.find_elements(By.XPATH, "//*[@id='incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:tblPsqInfoGrupoPrecoBody']//td[@class='tblLinha']")
-            if element_tds:
-                descricao = element_tds[0].text
-                texto = str(descricao.split(' - ')[0])
-                return texto
-
-            # Se não encontrar o primeiro elemento, tenta capturar o segundo XPath
-            element_tds = navegador.find_elements(By.XPATH, "//*[@id='incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:tblPsqInfoParticipanteBody']//td[@class='tblLinha']")
-            if element_tds:
-                descricao = element_tds[0].text
-                texto = str(descricao.split(' - ')[0])
-                return texto
-        except:
-            return None
+    def box_message_td(navegador, tipo):
+        if tipo == "grupo":
+            try:
+                # Tenta capturar o texto no primeiro XPath
+                element_tds = navegador.find_elements(By.XPATH, "//*[@id='incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:tblPsqInfoGrupoPrecoBody']//td[@class='tblLinha']")
+                if element_tds:
+                    descricao = element_tds[0].text
+                    texto = str(descricao.split(' - ')[0])
+                    return texto
+            except:
+                return None
+        else:
+            try:
+                # Se não encontrar o primeiro elemento, tenta capturar o segundo XPath
+                element_tds = navegador.find_elements(By.XPATH, "//*[@id='incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:tblPsqInfoParticipanteBody']//td[@class='tblLinha']")
+                if element_tds:
+                    descricao = element_tds[0].text
+                    texto = str(descricao.split(' - ')[0])
+                    return texto
+            except:
+                return None
     
-    def get_value(navegador):
-        try:
-            # Encontra o elemento pelo ID
-            elemento_input = navegador.find_element(By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:txtGrpCoGrupoFiltro")
-            if elemento_input:
-                # Obtém o valor do atributo 'value'
-                valor = elemento_input.get_attribute('value')
-                return str(valor)
-
-            elemento_input = navegador.find_element(By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:txtPrdCoProdutoFiltro")
-            if elemento_input:
-                # Obtém o valor do atributo 'value'
-                valor = elemento_input.get_attribute('value')
-                return str(valor)
-        except:
-            return None
+    def get_value(navegador, tipo):
+        if tipo == "grupo":
+            try:
+                # Encontra o elemento pelo ID
+                elemento_input = navegador.find_element(By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:txtGrpCoGrupoFiltro")
+                if elemento_input:
+                    # Obtém o valor do atributo 'value'
+                    valor = elemento_input.get_attribute('value')
+                    return str(valor)
+            except:
+                return None
+        else:
+            try:
+                elemento_input = navegador.find_element(By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:txtPrdCoProdutoFiltro")
+                if elemento_input:
+                    # Obtém o valor do atributo 'value'
+                    valor = elemento_input.get_attribute('value')
+                    return str(valor)
+            except:
+                return None
 
     def capturar_codigo_span(navegador):
-        time.sleep(1)
         try:
             # Localiza o elemento span pelo texto exato
             span_element = navegador.find_element(By.XPATH, "//span[contains(text(), 'Produto pertence a um grupo de preços. Não permite alterar!')]")
@@ -980,12 +995,12 @@ def alteracao_preco(caminho):
                 return None
         except:
             return None
-
+    
     def seleciona_loja(navegador, num_loja):
+        time.sleep(1)
         try:
-            time.sleep(1)
             loja = dict_grupos.get(num_loja)
-            element_loja = WebDriverWait(navegador, 10).until(EC.visibility_of_element_located((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:selEmiCoCnpj")))
+            element_loja = WebDriverWait(navegador,10).until(EC.visibility_of_element_located((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:selEmiCoCnpj")))
             select_loja = Select(element_loja)
             select_loja.select_by_visible_text(loja)
             return navegador, True
@@ -993,8 +1008,7 @@ def alteracao_preco(caminho):
             return navegador, False
     
     def inclui_data_inicio(navegador, data):
-        time.sleep(1)
-        field_data = WebDriverWait(navegador, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[contains(@id, 'txtPvdDtIniValidade')]")))
+        field_data = WebDriverWait(navegador,10).until(EC.element_to_be_clickable((By.XPATH, "//*[contains(@id, 'txtPvdDtIniValidade')]")))
         # Usar JavaScript para limpar o campo
         navegador.execute_script("arguments[0].value = '';", field_data)
         
@@ -1005,27 +1019,38 @@ def alteracao_preco(caminho):
         navegador.execute_script("arguments[0].dispatchEvent(new Event('change'));", field_data)
         return navegador
 
-    def selecionar_grupo_preco(navegador, code):
-        time.sleep(1)
+    def selecionar_grupo_preco(navegador, code, tipo):
+        loading(navegador)
         code = str(code)
         
         # Clica no botão para selecionar o grupo de preço
         button_grupo_preco = WebDriverWait(navegador,10).until(EC.element_to_be_clickable((By.XPATH, "//input[@value='Sel. o Grupo Preço']")))
         button_grupo_preco.click()
-
-        time.sleep(1)
-        first_message_td = box_message_td(navegador)
-        first_message_nenhum = box_message_nenhuma(navegador)
-        value = get_value(navegador)
-
-        if first_message_td == code:
-            pastel_codes = navegador.find_elements(By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:tblPsqInfoGrupoPrecoBody:')]")
-            pastel_codes[1].click()
-            return navegador, first_message_td
-        if value == code and first_message_nenhum == "Nenhuma linha retornada!":
-            navegador.execute_script("document.getElementById('incCentral:incCentralDiversos:incCentralDiversos:pnlPsqGrupoPreco').component.hide()")
-            return navegador, f"ERRO - {first_message_nenhum}"
         
+        time.sleep(2)
+
+        while True:
+            if get_value(navegador, tipo) == "":
+                break
+            if box_message_nenhuma(navegador) is not None or box_message_td(navegador, tipo) is not None:
+                break
+            time.sleep(1)
+
+        value = get_value(navegador, tipo)
+        first_message_td = box_message_td(navegador, tipo)
+        first_message_nenhum = box_message_nenhuma(navegador)
+
+        if value == code:
+            if first_message_nenhum != None:
+                navegador.execute_script("document.getElementById('incCentral:incCentralDiversos:incCentralDiversos:pnlPsqGrupoPreco').component.hide()")
+                return navegador, f"ERRO - {first_message_nenhum}"
+            else:             
+                pastel_all_codes = WebDriverWait(navegador,10).until(EC.presence_of_element_located((By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:tblPsqInfoGrupoPrecoBody:')]")))
+                pastel_codes = pastel_all_codes.find_elements(By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:tblPsqInfoGrupoPrecoBody:')]")
+                # Executa o clique no segundo elemento usando JavaScript
+                navegador.execute_script("arguments[0].click();", pastel_codes[1])
+                return navegador, first_message_td
+
         field_code_grupe = WebDriverWait(navegador,10).until(EC.element_to_be_clickable((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:txtGrpCoGrupoFiltro")))
         field_code_grupe.click()
         field_code_grupe.clear()
@@ -1034,60 +1059,71 @@ def alteracao_preco(caminho):
         button_pesquisar = WebDriverWait(navegador,10).until(EC.element_to_be_clickable((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:btnPsqGrupoPreco")))
         button_pesquisar.click()
 
-        start_time = time.time()
-        # Espera até que uma das duas funções retorne algo diferente de None
+        time.sleep(3)
+
         while True:
-            mensagem_nenhuma = box_message_nenhuma(navegador)
-            mensagem_td = box_message_td(navegador)
-
-            # Se qualquer uma das funções retornar algo diferente de None, saia do loop
-            if first_message_td != mensagem_td or first_message_nenhum != mensagem_nenhuma:
+            if box_message_td(navegador, tipo) is not None:
+                if code == box_message_td(navegador, tipo):
+                    break
+            if box_message_nenhuma(navegador) is not None:
                 break
-            
-            # Verifica se passaram mais de 5 segundos
-            if time.time() - start_time > 5:
-                break
-            
             time.sleep(1)
+        
+        mensagem_td = box_message_td(navegador, tipo)
+        mensagem_nenhuma = box_message_nenhuma(navegador)
 
-        # Retorna a mensagem encontrada
         if mensagem_nenhuma is not None:
             navegador.execute_script("document.getElementById('incCentral:incCentralDiversos:incCentralDiversos:pnlPsqGrupoPreco').component.hide()")
             return navegador, f"ERRO - {mensagem_nenhuma}"
         else:
             if code == mensagem_td:
-                pastel_codes = navegador.find_elements(By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:tblPsqInfoGrupoPrecoBody:')]")
-                pastel_codes[1].click()
+                pastel_all_codes = WebDriverWait(navegador,10).until(EC.presence_of_element_located((By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:tblPsqInfoGrupoPrecoBody:')]")))
+                pastel_codes = pastel_all_codes.find_elements(By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaGpr:tblPsqInfoGrupoPrecoBody:')]")
+                # Executa o clique no segundo elemento usando JavaScript
+                navegador.execute_script("arguments[0].click();", pastel_codes[1])
                 return navegador, mensagem_td
             else:
                 navegador.execute_script("document.getElementById('incCentral:incCentralDiversos:incCentralDiversos:pnlPsqGrupoPreco').component.hide()")
                 return navegador, "ERRO"
-    
-    def selecionar_produto(navegador, code):
-        time.sleep(1)
+
+    def selecionar_produto(navegador, code, tipo):
+        loading(navegador)
         code = str(code)
         
-        # Clica no botão para selecionar o grupo de preço
-        button_grupo_preco = WebDriverWait(navegador,10).until(EC.element_to_be_clickable((By.XPATH, "//input[@value='Selecionar o Produto']")))
-        button_grupo_preco.click()
+        # Clica no botão para selecionar o produto
+        button_produto = WebDriverWait(navegador,10).until(EC.element_to_be_clickable((By.XPATH, "//input[@value='Selecionar o Produto']")))
+        button_produto.click()
 
-        time.sleep(1)
-        first_message_td = box_message_td(navegador)
+        time.sleep(2)
+
+        while True:
+            if get_value(navegador, tipo) == "":
+                break
+            if box_message_nenhuma(navegador) is not None or box_message_td(navegador, tipo) is not None:
+                break
+            time.sleep(1)
+
+        first_message_td = box_message_td(navegador, tipo)
         first_message_nenhum = box_message_nenhuma(navegador)
-        value = get_value(navegador)
+        value = get_value(navegador, tipo)
 
-        if first_message_td == code:
-            pastel_codes = navegador.find_elements(By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:tblPsqInfoParticipanteBody:')]")
-            pastel_codes[1].click()
+        if value == code:
+            if first_message_nenhum != None:
+                navegador.execute_script("document.getElementById('incCentral:incCentralDiversos:incCentralDiversos:pnlPsqProduto').component.hide()")
+                return navegador, f"ERRO - {first_message_nenhum}"
+            else:
+                # Espera até que o elemento seja clicável incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:tblPsqInfoParticipanteBody:0:j_id278
+                pastel_all_codes= WebDriverWait(navegador,10).until(EC.presence_of_element_located((By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:tblPsqInfoParticipanteBody:')]")))
+                # Aqui estamos buscando os mesmos elementos que o 'pastel_all_codes' se refere
+                pastel_codes = pastel_all_codes.find_elements(By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:tblPsqInfoParticipanteBody:')]")
+                # Executa o clique no segundo elemento usando JavaScript
+                navegador.execute_script("arguments[0].click();", pastel_codes[1])
+                time.sleep(2)
+                span = capturar_codigo_span(navegador)
+                if span != None:
+                    return navegador, f"ERRO - Grupo de preco {span}"
+                return navegador, first_message_td
 
-            span = capturar_codigo_span(navegador)
-            if span != None:
-                return navegador, f"ERRO - Grupo de preco {span}"
-            return navegador, first_message_td
-        if value == code and first_message_nenhum == "Nenhuma linha retornada!":
-            navegador.execute_script("document.getElementById('incCentral:incCentralDiversos:incCentralDiversos:pnlPsqProduto').component.hide()")
-            return navegador, f"ERRO - {first_message_nenhum}"
-        
         field_code_grupe = WebDriverWait(navegador,10).until(EC.element_to_be_clickable((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:txtPrdCoProdutoFiltro")))
         field_code_grupe.click()
         field_code_grupe.clear()
@@ -1096,40 +1132,39 @@ def alteracao_preco(caminho):
         button_pesquisar = WebDriverWait(navegador,10).until(EC.element_to_be_clickable((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:btnPsqProduto")))
         button_pesquisar.click()
 
-        start_time = time.time()
-        # Espera até que uma das duas funções retorne algo diferente de None
+        time.sleep(3)
+
         while True:
-            mensagem_nenhuma = box_message_nenhuma(navegador)
-            mensagem_td = box_message_td(navegador)
-
-            # Se qualquer uma das funções retornar algo diferente de None, saia do loop
-            if first_message_td != mensagem_td or first_message_nenhum != mensagem_nenhuma:
+            if box_message_td(navegador, tipo) is not None:
+                if code == box_message_td(navegador, tipo):
+                    break
+            if box_message_nenhuma(navegador) is not None:
                 break
-            
-            # Verifica se passaram mais de 5 segundos
-            if time.time() - start_time > 5:
-                break
-            
             time.sleep(1)
+    
+        mensagem_td = box_message_td(navegador, tipo)
+        mensagem_nenhuma = box_message_nenhuma(navegador)
 
-        # Retorna a mensagem encontrada
         if mensagem_nenhuma is not None:
             navegador.execute_script("document.getElementById('incCentral:incCentralDiversos:incCentralDiversos:pnlPsqProduto').component.hide()")
             return navegador, f"ERRO - {mensagem_nenhuma}"
         else:
-            if code == mensagem_td:
-                pastel_codes = navegador.find_elements(By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:tblPsqInfoParticipanteBody:')]")
-                pastel_codes[1].click()
-
-                span = capturar_codigo_span(navegador)
-                if span != None:
-                    return navegador, f"ERRO - {span}"
-                return navegador, mensagem_td
+            if mensagem_td == code:
+                    # Espera até que o elemento seja clicável incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:tblPsqInfoParticipanteBody:0:j_id278
+                    pastel_all_codes = WebDriverWait(navegador,10).until(EC.presence_of_element_located((By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:tblPsqInfoParticipanteBody:')]")))
+                    # Aqui estamos buscando os mesmos elementos que o 'pastel_all_codes' se refere
+                    pastel_codes = pastel_all_codes.find_elements(By.XPATH, "//*[starts-with(@id, 'incCentral:incCentralDiversos:incCentralDiversos:formPnlModalPesquisaPrd:tblPsqInfoParticipanteBody:')]")
+                    # Executa o clique no segundo elemento usando JavaScript
+                    navegador.execute_script("arguments[0].click();", pastel_codes[1])
+                    time.sleep(2)
+                    span = capturar_codigo_span(navegador)
+                    if span != None:
+                        return navegador, f"ERRO - {span}"
+                    return navegador, mensagem_td
             else:
                 navegador.execute_script("document.getElementById('incCentral:incCentralDiversos:incCentralDiversos:pnlPsqProduto').component.hide()")
                 return navegador, "ERRO"
-
-
+            
     def validacao_dados(navegador):
         WebDriverWait(navegador,10).until(EC.visibility_of_element_located((By.ID, "incCentral:incCentralDiversos:incCentralDiversos:formConteudo:pnlPrecoVendaForm")))
         start_time_loja = time.time()
@@ -1206,7 +1241,7 @@ def alteracao_preco(caminho):
 
             if mensagem_ok == 'Salvo com sucesso!':
                 return navegador, True
-            if time.time() - start_time_save > 5:
+            if time.time() - start_time_save > 10:
                 return navegador, False
 
     def novo_nome_csv():
@@ -1220,7 +1255,12 @@ def alteracao_preco(caminho):
         return csv_file_path
     
     def xml_csv():
+        # Carregar a planilha
         df = pd.read_excel(caminho, engine='openpyxl')
+        
+        # Normalizar o case da coluna 'Tipo do Codigo' para aceitar qualquer valor independente de maiúsculas/minúsculas
+        df['Tipo do Codigo'] = df['Tipo do Codigo'].str.lower()  # Converte para minúsculas para padronizar
+
         try:
             # Substituir vírgula por ponto em 'Vl. Custo' e 'Vl. Revenda' se necessário
             df['Vl. Custo'] = df['Vl. Custo'].astype(str).str.replace(',', '.').astype(float)
@@ -1260,7 +1300,6 @@ def alteracao_preco(caminho):
 
     def analisar_linha(df):
         navegador = enter_navegador()
-
         # Iterar sobre as linhas da planilha
         for idx, row in df.iterrows():
             # Verificar o status da linha
@@ -1309,9 +1348,9 @@ def alteracao_preco(caminho):
                         continue
                     else:
                         if tipo == 'produto':
-                            navegador, mensagem = selecionar_produto(navegador, codigo)
+                            navegador, mensagem = selecionar_produto(navegador, codigo, tipo)
                         else:
-                            navegador, mensagem = selecionar_grupo_preco(navegador, codigo)
+                            navegador, mensagem = selecionar_grupo_preco(navegador, codigo, tipo)
                         # Atualizar o status com a mensagem retornada
                         if mensagem.startswith("ERRO"):
                             df.at[idx, 'Status'] = mensagem
@@ -1339,22 +1378,20 @@ def alteracao_preco(caminho):
                     df.to_csv(novo_nome_csv(), sep=";" ,index=False)
 
     def analisar_planilha():
-        while True:
-            try:
-                df = pd.read_csv(novo_nome_csv(), sep=";")
-            except:
-                df = xml_csv()
-        
-            # Verificar se há algum status "PARCIAL" ou em branco
-            if df['Status'].isnull().any() or any(df['Status'].str.startswith("PARCIAL")):
-                
-                # Rodar a função para continuar o processamento
-                analisar_linha(df)
-
-            else:
-                # Se todos os status forem "OK" ou "ERRO", rodar arquivo_final()
-                arquivo_final()
-                break
+        try:
+            df = pd.read_csv(novo_nome_csv(), sep=";")
+        except:
+            df = xml_csv()
+    
+        # Verificar se há algum status "PARCIAL" ou em branco
+        if df['Status'].isnull().any() or any(df['Status'].str.startswith("PARCIAL")):
+            
+            # Rodar a função para continuar o processamento
+            analisar_linha(df)
+        else:
+            # Se todos os status forem "OK" ou "ERRO", rodar arquivo_final()
+            arquivo_final()
+            
 
     analisar_planilha()
 
